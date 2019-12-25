@@ -10,8 +10,9 @@ from typing import Any, Type
 warning_given = False
 
 
-def setrole_connection(*, sender: Type[PostgreSQLDatabaseWrapper],
-                       connection: PostgreSQLDatabaseWrapper, **kwargs: Any) -> None:
+def setrole_connection(*, connection: PostgreSQLDatabaseWrapper, **kwargs: Any) -> None:
+    if not isinstance(connection, PostgreSQLDatabaseWrapper):
+        return
     global warning_given
     role = None
     if "set_role" in connection.settings_dict:
@@ -21,17 +22,13 @@ def setrole_connection(*, sender: Type[PostgreSQLDatabaseWrapper],
 
     if role:
         connection.cursor().execute("SET ROLE %s", (role,))
-    else:
-        if not warning_given:
-            warnings.warn("postgresql_setrole app is installed, but no SET_ROLE value is in settings.DATABASE")
-            warning_given = True  # Once is enough
 
 
 class DjangoPostgreSQLSetRoleApp(AppConfig):
     name = "postgresql_setrole"
 
     def ready(self) -> None:
-        connection_created.connect(setrole_connection, sender=PostgreSQLDatabaseWrapper)
+        connection_created.connect(setrole_connection)
 
 
 default_app_config = 'postgresql_setrole.DjangoPostgreSQLSetRoleApp'
